@@ -6,7 +6,6 @@ load("@bazel_skylib//lib:paths.bzl", "paths")
 load("@bazel_skylib//lib:unittest.bzl", "analysistest", "asserts", "unittest")
 load("@rules_cc//cc/common:cc_info.bzl", "CcInfo")
 load("//zig/private/providers:zig_target_info.bzl", "ZigTargetInfo")
-load("//zig/private/providers:zig_settings_info.bzl", "ZigSettingsInfo")
 load(
     ":util.bzl",
     "assert_find_action",

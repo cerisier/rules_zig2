@@ -5,9 +5,8 @@ load("@bazel_skylib//lib:unittest.bzl", "analysistest", "asserts", "unittest")
 load("//zig/private/providers:zig_settings_info.bzl", "ZigSettingsInfo")
 load(
     ":util.bzl",
-    "canonical_label",
-    "assert_find_action",
     "assert_find_actions_in_exact_order",
+    "canonical_label",
 )
 
 _SETTINGS_LINKMODE = canonical_label("@//zig/settings:linkmode")

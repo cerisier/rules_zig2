@@ -144,7 +144,9 @@ def assert_find_actions_in_exact_order(env, expected_mnemonics):
                 env,
                 False,
                 "Expected mnemonic '{}' in order {} but actual sequence was {}.".format(
-                    exp, expected_mnemonics, actual_mnemonics
+                    exp,
+                    expected_mnemonics,
+                    actual_mnemonics,
                 ),
             )
 

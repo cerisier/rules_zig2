@@ -319,7 +319,7 @@ The `cdeps` attribute of `zig_build` is deprecated, use `deps` instead.
         order = "preorder",
     )
 
-    providers = [] #TODO(cerisier): root_module ?
+    providers = []  #TODO(cerisier): root_module ?
 
     runfiles = zig_create_runfiles(
         ctx_runfiles = ctx.runfiles,
@@ -375,7 +375,7 @@ The `cdeps` attribute of `zig_build` is deprecated, use `deps` instead.
                 feature_configuration = feature_configuration,
                 cc_toolchain = cc_toolchain,
                 name = ctx.label.name,
-                user_link_flags = [], #ctx.attr.linkopts,
+                user_link_flags = [],  #ctx.attr.linkopts,
                 output_type = "executable",
                 linking_contexts = [linking_context, root_module.cc_info.linking_context],
             )
@@ -390,7 +390,7 @@ The `cdeps` attribute of `zig_build` is deprecated, use `deps` instead.
             solib_parents = [
                 "/".join([".." for _ in ctx.label.package.split("/")]),
                 paths.join(executable.basename + ".runfiles", ctx.workspace_name),
-            ] 
+            ]
 
             args.add(executable, format = "-femit-bin=%s")
 
@@ -482,7 +482,7 @@ The `cdeps` attribute of `zig_build` is deprecated, use `deps` instead.
                 feature_configuration = feature_configuration,
                 cc_toolchain = cc_toolchain,
                 name = ctx.label.name,
-                user_link_flags = [], #ctx.attr.linkopts,
+                user_link_flags = [],  #ctx.attr.linkopts,
                 output_type = "executable",
                 linking_contexts = [linking_context, root_module.cc_info.linking_context],
             )
@@ -498,7 +498,7 @@ The `cdeps` attribute of `zig_build` is deprecated, use `deps` instead.
             solib_parents = [
                 "/".join([".." for _ in ctx.label.package.split("/")]),
                 paths.join(executable.basename + ".runfiles", ctx.workspace_name),
-            ] 
+            ]
 
             args.add(executable, format = "-femit-bin=%s")
 
@@ -566,7 +566,7 @@ The `cdeps` attribute of `zig_build` is deprecated, use `deps` instead.
                                 ),
                             ]),
                         ),
-                    )
+                    ),
                 ],
                 cc_infos = [root_module.cc_info],
             )
@@ -622,7 +622,7 @@ The `cdeps` attribute of `zig_build` is deprecated, use `deps` instead.
                 feature_configuration = feature_configuration,
                 cc_toolchain = cc_toolchain,
                 name = ctx.label.name,
-                user_link_flags = [], #ctx.attr.linkopts,
+                user_link_flags = [],  #ctx.attr.linkopts,
                 output_type = "dynamic_library",
                 linking_contexts = [linking_context, root_module.cc_info.linking_context],
             )
@@ -695,9 +695,13 @@ The `cdeps` attribute of `zig_build` is deprecated, use `deps` instead.
             ),
         ])
 
-        print(cc_info, "")
         if cc_info:
-            providers.append(cc_info)
+            providers.append(
+                cc_common.merge_cc_infos(
+                    direct_cc_infos = [cc_info],
+                    cc_infos = [root_module.cc_info],
+                ),
+            )
     else:
         fail("Unknown rule kind '{}'.".format(kind))
 

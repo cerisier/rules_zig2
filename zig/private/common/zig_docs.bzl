@@ -6,6 +6,7 @@ load(
     "//zig/private/common:bazel_builtin.bzl",
     "bazel_builtin_module",
 )
+
 # load("//zig/private/common:cdeps.bzl", "zig_cdeps")
 load("//zig/private/common:csrcs.bzl", "zig_csrcs")
 load("//zig/private/common:location_expansion.bzl", "location_expansion")
@@ -150,15 +151,15 @@ The `cdeps` attribute of `zig_build` is deprecated, use `deps` instead.
         transitive_inputs.append(c_module.transitive_inputs)
 
     # if root_module.cc_info:
-        # zig_cdeps(
-        #     cc_info = root_module.cc_info,
-        #     solib_parents = solib_parents,
-        #     os = zigtargetinfo.triple.os,
-        #     direct_inputs = direct_inputs,
-        #     transitive_inputs = transitive_inputs,
-        #     args = args,
-        #     data = direct_data,
-        # )
+    # zig_cdeps(
+    #     cc_info = root_module.cc_info,
+    #     solib_parents = solib_parents,
+    #     os = zigtargetinfo.triple.os,
+    #     direct_inputs = direct_inputs,
+    #     transitive_inputs = transitive_inputs,
+    #     args = args,
+    #     data = direct_data,
+    # )
 
     zig_module_specifications(
         root_module = root_module,

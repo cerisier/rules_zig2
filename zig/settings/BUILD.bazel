@@ -9,8 +9,8 @@ load(
 
 settings(
     name = "settings",
-    mode = ":mode",
     linkmode = ":linkmode",
+    mode = ":mode",
     threaded = ":threaded",
     visibility = ["//visibility:public"],
 )

@@ -1,7 +1,7 @@
 """Utility functions for interacting with CC toolchains."""
 
-load("@rules_cc//cc/common:cc_common.bzl", "cc_common")
 load("@rules_cc//cc:find_cc_toolchain.bzl", find_rules_cc_toolchain = "find_cc_toolchain")
+load("@rules_cc//cc/common:cc_common.bzl", "cc_common")
 
 def need_translate_c(cc_info):
     return cc_info.compilation_context and (cc_info.compilation_context.headers or cc_info.compilation_context.defines)

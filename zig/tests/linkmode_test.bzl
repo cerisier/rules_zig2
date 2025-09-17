@@ -48,8 +48,8 @@ _build_exe_linkmode_zig_test = _define_build_linkmode_test(["ZigBuildExe"], "zig
 _build_static_lib_linkmode_cc_test = _define_build_linkmode_test(["ZigBuildStaticLib"], "cc")
 _build_static_lib_linkmode_zig_test = _define_build_linkmode_test(["ZigBuildStaticLib"], "zig")
 
-# _build_shared_lib_linkmode_cc_test = _define_build_linkmode_test(["ZigBuildLib", "CppLink"], "cc")
-# _build_shared_lib_linkmode_zig_test = _define_build_linkmode_test(["ZigBuildSharedLib"], "zig")
+_build_shared_lib_linkmode_cc_test = _define_build_linkmode_test(["ZigBuildLib", "CppLink"], "cc")
+_build_shared_lib_linkmode_zig_test = _define_build_linkmode_test(["ZigBuildSharedLib"], "zig")
 
 _build_test_linkmode_cc_test = _define_build_linkmode_test(["ZigBuildLib", "CppLink"], "cc")
 _build_test_linkmode_zig_test = _define_build_linkmode_test(["ZigBuildTest"], "zig")
@@ -67,10 +67,8 @@ def linkmode_test_suite(name):
         partial.make(_build_static_lib_linkmode_cc_test, target_under_test = "//zig/tests/simple-library:library", size = "small"),
         partial.make(_build_static_lib_linkmode_zig_test, target_under_test = "//zig/tests/simple-library:library", size = "small"),
         # Test Zig build linkmode on a shared library target
-
-        #TODO(cerisier): Fix private API use of cc_shared_library
-        # partial.make(_build_shared_lib_linkmode_cc_test, target_under_test = "//zig/tests/simple-shared-library:shared", size = "small"),
-        # partial.make(_build_shared_lib_linkmode_zig_test, target_under_test = "//zig/tests/simple-shared-library:shared", size = "small"),
+        partial.make(_build_shared_lib_linkmode_cc_test, target_under_test = "//zig/tests/simple-shared-library:shared", size = "small"),
+        partial.make(_build_shared_lib_linkmode_zig_test, target_under_test = "//zig/tests/simple-shared-library:shared", size = "small"),
         # Test Zig build linkmode on a test target
         partial.make(_build_test_linkmode_cc_test, target_under_test = "//zig/tests/simple-test:test", size = "small"),
         partial.make(_build_test_linkmode_zig_test, target_under_test = "//zig/tests/simple-test:test", size = "small"),

@@ -122,16 +122,6 @@ The default behavior is to include them in executables and shared libraries.
 
 COMMON_LIBRARY_ATTRS = {}
 
-SHARED_LIBRARY_ATTRS = {
-    "shared_lib_name": attr.string(
-        doc = """\
-By default zig_shared_library will use a name for the shared library output file based on the target's name and the platform.
-Sometimes you may not want the default name, in which case you can use this attribute to choose a custom name.
-""",
-    mandatory = False
-    ),
-}
-
 BINARY_ATTRS = {
     "env": attr.string_dict(
         doc = """\
@@ -601,9 +591,6 @@ The `cdeps` attribute of `zig_build` is deprecated, use `deps` instead.
         ])
 
     elif kind == "zig_shared_library":
-        mnemonic = "ZigBuildSharedLib"
-        progress_message = "zig build-lib %{label}"
-
         shared_library = None
         cc_info = None
 
@@ -613,11 +600,6 @@ The `cdeps` attribute of `zig_build` is deprecated, use `deps` instead.
                 "-lc",
             ])
 
-            if (ctx.attr.shared_lib_name):
-                shared_library = ctx.actions.declare_file(ctx.attr.shared_lib_name)
-            else:
-                shared_library = ctx.actions.declare_file(_lib_prefix(zigtargetinfo.triple.os) + ctx.label.name + _shared_lib_extension(zigtargetinfo.triple.os))
-
             static_lib = ctx.actions.declare_file(ctx.label.name + _static_lib_extension(zigtargetinfo.triple.os))
             args.add(static_lib, format = "-femit-bin=%s")
             ctx.actions.run(
@@ -625,8 +607,8 @@ The `cdeps` attribute of `zig_build` is deprecated, use `deps` instead.
                 inputs = inputs,
                 executable = zigtoolchaininfo.zig_exe_path,
                 arguments = ["build-lib", global_args, args],
-                mnemonic = mnemonic,
-                progress_message = progress_message,
+                mnemonic = "ZigBuildLib",
+                progress_message = "zig build-lib %{label}",
                 **zig_build_kwargs
             )
             link_outputs = _cc_link(
@@ -634,13 +616,14 @@ The `cdeps` attribute of `zig_build` is deprecated, use `deps` instead.
                 name = ctx.label.name,
                 user_link_flags = [], #ctx.attr.linkopts,
                 output_type = "dynamic_library",
-                main_output = shared_library,
                 cc_infos = [root_module.cc_info] + [_cc_info_for_library(
                     ctx = ctx,
                     static_library = static_lib,
                     alwayslink = True,
                 )],
             )
+
+            shared_library = link_outputs.library_to_link.dynamic_library
 
             cc_info = _cc_info_for_library_to_link(
                 ctx = ctx,
@@ -671,8 +654,8 @@ The `cdeps` attribute of `zig_build` is deprecated, use `deps` instead.
                 inputs = inputs,
                 executable = zigtoolchaininfo.zig_exe_path,
                 arguments = ["build-lib", "-dynamic", global_args, args],
-                mnemonic = mnemonic,
-                progress_message = progress_message,
+                mnemonic = "ZigBuildSharedLib",
+                progress_message = "zig build-lib -dynamic %{label}",
                 **zig_build_kwargs
             )
 

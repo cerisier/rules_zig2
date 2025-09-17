@@ -1,10 +1,10 @@
 """Common implementation of the zig_binary|library|test rules."""
 
 load("@bazel_skylib//lib:paths.bzl", "paths")
-load("@rules_cc//cc:find_cc_toolchain.bzl", "find_cc_toolchain", "use_cc_toolchain")
+load("@rules_cc//cc:find_cc_toolchain.bzl", "use_cc_toolchain")
 load("@rules_cc//cc/common:cc_common.bzl", "cc_common")
 load("@rules_cc//cc/common:cc_info.bzl", "CcInfo")
-load("//zig/private:cc_helper.bzl", "need_translate_c")
+load("//zig/private:cc_helper.bzl", "find_cc_toolchain", "need_translate_c")
 load(
     "//zig/private/common:bazel_builtin.bzl",
     "bazel_builtin_module",
@@ -157,10 +157,10 @@ TOOLCHAINS = [
 FRAGMENTS = ["cpp"]
 
 def _lib_prefix(os):
-    return os == "windows" and "" or "lib"
+    return "" if os == "windows" else "lib"
 
 def _static_lib_extension(os):
-    return os == "windows" and ".lib" or ".a"
+    return ".lib" if os == "windows" else ".a"
 
 def _shared_lib_extension(os):
     return {
@@ -170,52 +170,7 @@ def _shared_lib_extension(os):
     }.get(os, ".so")
 
 def _executable_extension(os):
-    return os == "windows" and ".exe" or ""
-
-def _cc_info_for_library(ctx, **kwargs):
-    cc_toolchain = find_cc_toolchain(ctx, mandatory = True)
-    feature_configuration = cc_common.configure_features(
-        ctx = ctx,
-        cc_toolchain = cc_toolchain,
-        requested_features = ctx.features,
-        unsupported_features = ctx.disabled_features,
-    )
-    lib = cc_common.create_library_to_link(
-        actions = ctx.actions,
-        cc_toolchain = cc_toolchain,
-        feature_configuration = feature_configuration,
-        **kwargs
-    )
-    return _cc_info_for_library_to_link(ctx, lib)
-
-def _cc_info_for_library_to_link(ctx, library_to_link):
-    return CcInfo(
-        linking_context = cc_common.create_linking_context(
-            linker_inputs = depset([
-                cc_common.create_linker_input(
-                    owner = ctx.label,
-                    libraries = depset([library_to_link]),
-                ),
-            ]),
-        ),
-    )
-
-def _cc_link(ctx, name, cc_infos, **kwargs):
-    cc_toolchain = find_cc_toolchain(ctx, mandatory = True)
-    feature_configuration = cc_common.configure_features(
-        ctx = ctx,
-        cc_toolchain = cc_toolchain,
-        requested_features = ctx.features,
-        unsupported_features = ctx.disabled_features,
-    )
-    return cc_common.link(
-        actions = ctx.actions,
-        name = name,
-        feature_configuration = feature_configuration,
-        cc_toolchain = cc_toolchain,
-        linking_contexts = [cc_info.linking_context for cc_info in cc_infos],
-        **kwargs
-    )
+    return ".exe" if os == "windows" else ""
 
 def zig_build_impl(ctx, *, kind):
     """Common implementation for Zig build rules.
@@ -350,17 +305,6 @@ The `cdeps` attribute of `zig_build` is deprecated, use `deps` instead.
             transitive_inputs = transitive_inputs,
         )
 
-        #TODO(cerisier): Splut between sandbox for cImport and linker_inputs
-        # zig_cdeps(
-        #     cc_info = root_module.cc_info,
-        #     solib_parents = solib_parents,
-        #     os = zigtargetinfo.triple.os,
-        #     direct_inputs = direct_inputs,
-        #     transitive_inputs = transitive_inputs,
-        #     args = args,
-        #     data = direct_data,
-        # )
-
     zig_module_specifications(
         root_module = root_module,
         args = args,
@@ -410,16 +354,30 @@ The `cdeps` attribute of `zig_build` is deprecated, use `deps` instead.
                 **zig_build_kwargs
             )
 
-            link_outputs = _cc_link(
-                ctx = ctx,
+            cc_toolchain, feature_configuration = find_cc_toolchain(ctx, mandatory = True)
+            library_to_link = cc_common.create_library_to_link(
+                actions = ctx.actions,
+                feature_configuration = feature_configuration,
+                cc_toolchain = cc_toolchain,
+                static_library = static_lib,
+                alwayslink = True,
+            )
+            linking_context = cc_common.create_linking_context(
+                linker_inputs = depset([
+                    cc_common.create_linker_input(
+                        owner = ctx.label,
+                        libraries = depset([library_to_link]),
+                    ),
+                ]),
+            )
+            link_outputs = cc_common.link(
+                actions = ctx.actions,
+                feature_configuration = feature_configuration,
+                cc_toolchain = cc_toolchain,
                 name = ctx.label.name,
                 user_link_flags = [], #ctx.attr.linkopts,
                 output_type = "executable",
-                cc_infos = [root_module.cc_info] + [_cc_info_for_library(
-                    ctx = ctx,
-                    static_library = static_lib,
-                    alwayslink = True,
-                )],
+                linking_contexts = [linking_context, root_module.cc_info.linking_context],
             )
 
             executable = link_outputs.executable
@@ -503,16 +461,30 @@ The `cdeps` attribute of `zig_build` is deprecated, use `deps` instead.
                 **zig_build_kwargs
             )
 
-            link_outputs = _cc_link(
-                ctx = ctx,
+            cc_toolchain, feature_configuration = find_cc_toolchain(ctx, mandatory = True)
+            library_to_link = cc_common.create_library_to_link(
+                actions = ctx.actions,
+                feature_configuration = feature_configuration,
+                cc_toolchain = cc_toolchain,
+                static_library = static_lib,
+                alwayslink = True,
+            )
+            linking_context = cc_common.create_linking_context(
+                linker_inputs = depset([
+                    cc_common.create_linker_input(
+                        owner = ctx.label,
+                        libraries = depset([library_to_link]),
+                    ),
+                ]),
+            )
+            link_outputs = cc_common.link(
+                actions = ctx.actions,
+                feature_configuration = feature_configuration,
+                cc_toolchain = cc_toolchain,
                 name = ctx.label.name,
                 user_link_flags = [], #ctx.attr.linkopts,
                 output_type = "executable",
-                cc_infos = [root_module.cc_info] + [_cc_info_for_library(
-                    ctx = ctx,
-                    static_library = static_lib,
-                    alwayslink = True,
-                )],
+                linking_contexts = [linking_context, root_module.cc_info.linking_context],
             )
 
             executable = link_outputs.executable
@@ -562,7 +534,7 @@ The `cdeps` attribute of `zig_build` is deprecated, use `deps` instead.
             ),
         )
     elif kind == "zig_static_library":
-        static_lib = ctx.actions.declare_file(ctx.label.name + _static_lib_extension(zigtargetinfo.triple.os))
+        static_lib = ctx.actions.declare_file(_lib_prefix(zigtargetinfo.triple.os) + ctx.label.name + _static_lib_extension(zigtargetinfo.triple.os))
         args.add(static_lib, format = "-femit-bin=%s")
         ctx.actions.run(
             outputs = [static_lib],
@@ -573,20 +545,37 @@ The `cdeps` attribute of `zig_build` is deprecated, use `deps` instead.
             progress_message = "zig build-lib %{label}",
             **zig_build_kwargs
         )
+
+        cc_toolchain, feature_configuration = find_cc_toolchain(ctx, mandatory = False)
+        if cc_toolchain:
+            library_to_link = cc_common.create_library_to_link(
+                actions = ctx.actions,
+                feature_configuration = feature_configuration,
+                cc_toolchain = cc_toolchain,
+                static_library = static_lib,
+                alwayslink = True,
+            )
+            cc_info = cc_common.merge_cc_infos(
+                direct_cc_infos = [
+                    CcInfo(
+                        linking_context = cc_common.create_linking_context(
+                            linker_inputs = depset([
+                                cc_common.create_linker_input(
+                                    owner = ctx.label,
+                                    libraries = depset([library_to_link]),
+                                ),
+                            ]),
+                        ),
+                    )
+                ],
+                cc_infos = [root_module.cc_info],
+            )
+            providers.append(cc_info)
+
         providers.extend([
             DefaultInfo(
                 files = depset([static_lib]),
                 runfiles = runfiles,
-            ),
-            cc_common.merge_cc_infos(
-                direct_cc_infos = [
-                    _cc_info_for_library(
-                        ctx = ctx,
-                        static_library = static_lib,
-                        alwayslink = True,
-                    ),
-                ],
-                cc_infos = [root_module.cc_info],
             ),
         ])
 
@@ -611,36 +600,55 @@ The `cdeps` attribute of `zig_build` is deprecated, use `deps` instead.
                 progress_message = "zig build-lib %{label}",
                 **zig_build_kwargs
             )
-            link_outputs = _cc_link(
-                ctx = ctx,
+
+            cc_toolchain, feature_configuration = find_cc_toolchain(ctx, mandatory = True)
+            library_to_link = cc_common.create_library_to_link(
+                actions = ctx.actions,
+                feature_configuration = feature_configuration,
+                cc_toolchain = cc_toolchain,
+                static_library = static_lib,
+                alwayslink = True,
+            )
+            linking_context = cc_common.create_linking_context(
+                linker_inputs = depset([
+                    cc_common.create_linker_input(
+                        owner = ctx.label,
+                        libraries = depset([library_to_link]),
+                    ),
+                ]),
+            )
+            link_outputs = cc_common.link(
+                actions = ctx.actions,
+                feature_configuration = feature_configuration,
+                cc_toolchain = cc_toolchain,
                 name = ctx.label.name,
                 user_link_flags = [], #ctx.attr.linkopts,
                 output_type = "dynamic_library",
-                cc_infos = [root_module.cc_info] + [_cc_info_for_library(
-                    ctx = ctx,
-                    static_library = static_lib,
-                    alwayslink = True,
-                )],
+                linking_contexts = [linking_context, root_module.cc_info.linking_context],
             )
 
             shared_library = link_outputs.library_to_link.dynamic_library
 
-            cc_info = _cc_info_for_library_to_link(
-                ctx = ctx,
-                library_to_link = link_outputs.library_to_link,
+            cc_info = CcInfo(
+                linking_context = cc_common.create_linking_context(
+                    linker_inputs = depset([
+                        cc_common.create_linker_input(
+                            owner = ctx.label,
+                            libraries = depset([link_outputs.library_to_link]),
+                        ),
+                    ]),
+                ),
             )
         else:
             shared_library = ctx.actions.declare_file(_lib_prefix(zigtargetinfo.triple.os) + ctx.label.name + _shared_lib_extension(zigtargetinfo.triple.os))
             args.add(shared_library, format = "-femit-bin=%s")
-
-            solib_parents = [""]
 
             cdeps_inputs = []
             if root_module.cc_info:
                 # Add all cdeps linker inputs to the sandbox and zig args.
                 zig_cdeps_linker_inputs(
                     linking_context = root_module.cc_info.linking_context,
-                    solib_parents = solib_parents,
+                    solib_parents = [""],
                     os = zigtargetinfo.triple.os,
                     inputs = cdeps_inputs,
                     args = args,
@@ -659,21 +667,37 @@ The `cdeps` attribute of `zig_build` is deprecated, use `deps` instead.
                 **zig_build_kwargs
             )
 
-            cc_info = _cc_info_for_library(
-                ctx = ctx,
-                dynamic_library = shared_library,
-            )
+            cc_toolchain, feature_configuration = find_cc_toolchain(ctx, mandatory = False)
+            if cc_toolchain:
+                library_to_link = cc_common.create_library_to_link(
+                    actions = ctx.actions,
+                    feature_configuration = feature_configuration,
+                    cc_toolchain = cc_toolchain,
+                    dynamic_library = shared_library,
+                    alwayslink = True,
+                )
+
+                cc_info = CcInfo(
+                    linking_context = cc_common.create_linking_context(
+                        linker_inputs = depset([
+                            cc_common.create_linker_input(
+                                owner = ctx.label,
+                                libraries = depset([library_to_link]),
+                            ),
+                        ]),
+                    ),
+                )
 
         providers.extend([
             DefaultInfo(
                 files = depset([shared_library]),
                 runfiles = runfiles,
             ),
-            cc_common.merge_cc_infos(
-                direct_cc_infos = [cc_info],
-                cc_infos = [root_module.cc_info],
-            ),
         ])
+
+        print(cc_info, "")
+        if cc_info:
+            providers.append(cc_info)
     else:
         fail("Unknown rule kind '{}'.".format(kind))
 

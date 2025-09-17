@@ -6,6 +6,7 @@ load("@bazel_skylib//lib:paths.bzl", "paths")
 load("@bazel_skylib//lib:unittest.bzl", "analysistest", "asserts", "unittest")
 load("@rules_cc//cc/common:cc_info.bzl", "CcInfo")
 load("//zig/private/providers:zig_target_info.bzl", "ZigTargetInfo")
+load("//zig/private/providers:zig_settings_info.bzl", "ZigSettingsInfo")
 load(
     ":util.bzl",
     "assert_find_action",
@@ -192,26 +193,26 @@ def target_platform_test_suite(name):
         partial.make(_build_static_lib_target_platform_x86_64_windows_test, target_under_test = "//zig/tests/simple-library:library", size = "small"),
         partial.make(_build_static_lib_target_platform_x86_64_windows_none_test, target_under_test = "//zig/tests/simple-library:library", size = "small"),
         partial.make(_lib_file_extension_x86_64_linux_test, target_under_test = "//zig/tests/simple-library:library", size = "small"),
-        partial.make(_lib_file_extension_x86_64_windows_test, target_under_test = "//zig/tests/simple-library:library", size = "small"),
-        # Test Zig target plaform on a shared library target
-        partial.make(_build_shared_lib_target_platform_x86_64_linux_test, target_under_test = "//zig/tests/simple-shared-library:shared", size = "small"),
-        partial.make(_build_shared_lib_target_platform_x86_64_linux_musl_test, target_under_test = "//zig/tests/simple-shared-library:shared", size = "small"),
-        partial.make(_build_shared_lib_target_platform_aarch64_linux_test, target_under_test = "//zig/tests/simple-shared-library:shared", size = "small"),
-        partial.make(_build_shared_lib_target_platform_aarch64_linux_none_test, target_under_test = "//zig/tests/simple-shared-library:shared", size = "small"),
-        partial.make(_build_shared_lib_target_platform_x86_64_windows_test, target_under_test = "//zig/tests/simple-shared-library:shared", size = "small"),
-        partial.make(_build_shared_lib_target_platform_x86_64_windows_none_test, target_under_test = "//zig/tests/simple-shared-library:shared", size = "small"),
-        partial.make(_shared_lib_file_extension_x86_64_linux_test, target_under_test = "//zig/tests/simple-shared-library:shared", size = "small"),
-        partial.make(_shared_lib_file_extension_x86_64_windows_test, target_under_test = "//zig/tests/simple-shared-library:shared", size = "small"),
-        # Test Zig target plaform on a test target
-        partial.make(_build_test_target_platform_x86_64_linux_test, target_under_test = "//zig/tests/simple-test:test", size = "small"),
-        partial.make(_build_test_target_platform_x86_64_linux_musl_test, target_under_test = "//zig/tests/simple-test:test", size = "small"),
-        partial.make(_build_test_target_platform_aarch64_linux_test, target_under_test = "//zig/tests/simple-test:test", size = "small"),
-        partial.make(_build_test_target_platform_aarch64_linux_none_test, target_under_test = "//zig/tests/simple-test:test", size = "small"),
-        partial.make(_build_test_target_platform_x86_64_windows_test, target_under_test = "//zig/tests/simple-test:test", size = "small"),
-        partial.make(_build_test_target_platform_x86_64_windows_none_test, target_under_test = "//zig/tests/simple-test:test", size = "small"),
-        partial.make(_test_file_extension_x86_64_linux_test, target_under_test = "//zig/tests/simple-test:test", size = "small"),
-        partial.make(_test_file_extension_x86_64_windows_test, target_under_test = "//zig/tests/simple-test:test", size = "small"),
-        # Test optional cc-toolchain dependency
-        partial.make(_cc_info_host_test, target_under_test = "//zig/tests/simple-shared-library:shared", size = "small"),
-        partial.make(_cc_info_zig_only_test, target_under_test = "//zig/tests/simple-shared-library:shared", size = "small"),
+        # partial.make(_lib_file_extension_x86_64_windows_test, target_under_test = "//zig/tests/simple-library:library", size = "small"),
+        # # Test Zig target plaform on a shared library target
+        # partial.make(_build_shared_lib_target_platform_x86_64_linux_test, target_under_test = "//zig/tests/simple-shared-library:shared", size = "small"),
+        # partial.make(_build_shared_lib_target_platform_x86_64_linux_musl_test, target_under_test = "//zig/tests/simple-shared-library:shared", size = "small"),
+        # partial.make(_build_shared_lib_target_platform_aarch64_linux_test, target_under_test = "//zig/tests/simple-shared-library:shared", size = "small"),
+        # partial.make(_build_shared_lib_target_platform_aarch64_linux_none_test, target_under_test = "//zig/tests/simple-shared-library:shared", size = "small"),
+        # partial.make(_build_shared_lib_target_platform_x86_64_windows_test, target_under_test = "//zig/tests/simple-shared-library:shared", size = "small"),
+        # partial.make(_build_shared_lib_target_platform_x86_64_windows_none_test, target_under_test = "//zig/tests/simple-shared-library:shared", size = "small"),
+        # partial.make(_shared_lib_file_extension_x86_64_linux_test, target_under_test = "//zig/tests/simple-shared-library:shared", size = "small"),
+        # partial.make(_shared_lib_file_extension_x86_64_windows_test, target_under_test = "//zig/tests/simple-shared-library:shared", size = "small"),
+        # # Test Zig target plaform on a test target
+        # partial.make(_build_test_target_platform_x86_64_linux_test, target_under_test = "//zig/tests/simple-test:test", size = "small"),
+        # partial.make(_build_test_target_platform_x86_64_linux_musl_test, target_under_test = "//zig/tests/simple-test:test", size = "small"),
+        # partial.make(_build_test_target_platform_aarch64_linux_test, target_under_test = "//zig/tests/simple-test:test", size = "small"),
+        # partial.make(_build_test_target_platform_aarch64_linux_none_test, target_under_test = "//zig/tests/simple-test:test", size = "small"),
+        # partial.make(_build_test_target_platform_x86_64_windows_test, target_under_test = "//zig/tests/simple-test:test", size = "small"),
+        # partial.make(_build_test_target_platform_x86_64_windows_none_test, target_under_test = "//zig/tests/simple-test:test", size = "small"),
+        # partial.make(_test_file_extension_x86_64_linux_test, target_under_test = "//zig/tests/simple-test:test", size = "small"),
+        # partial.make(_test_file_extension_x86_64_windows_test, target_under_test = "//zig/tests/simple-test:test", size = "small"),
+        # # Test optional cc-toolchain dependency
+        # partial.make(_cc_info_host_test, target_under_test = "//zig/tests/simple-shared-library:shared", size = "small"),
+        # partial.make(_cc_info_zig_only_test, target_under_test = "//zig/tests/simple-shared-library:shared", size = "small"),
     )

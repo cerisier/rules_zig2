@@ -239,12 +239,20 @@ def zig_build_impl(ctx, *, kind):
 
     location_targets = ctx.attr.data
 
-
     default_output_is_executable = False
     default_output = None
+    solib_parents = []
     if kind == "zig_binary" or kind == "zig_test":
         default_output = ctx.actions.declare_file(ctx.label.name + _executable_extension(zigtargetinfo.triple.os))
         default_output_is_executable = True
+
+        # Calculate the RPATH components to discover the solib tree.
+        # See https://github.com/bazelbuild/bazel/blob/7.0.0/src/main/java/com/google/devtools/build/lib/rules/cpp/LibrariesToLinkCollector.java#L177
+        # TODO: Implement case 8b.
+        solib_parents = [
+            "/".join([".." for _ in ctx.label.package.split("/")]),
+            paths.join(default_output.basename + ".runfiles", ctx.workspace_name),
+        ]
     elif kind == "zig_static_library":
         default_output = ctx.actions.declare_file(_lib_prefix(zigtargetinfo.triple.os) + ctx.label.name + _static_lib_extension(zigtargetinfo.triple.os))
     elif kind == "zig_shared_library":
@@ -252,6 +260,7 @@ def zig_build_impl(ctx, *, kind):
             default_output = ctx.actions.declare_file(ctx.attr.shared_lib_name)
         else:
             default_output = ctx.actions.declare_file(_lib_prefix(zigtargetinfo.triple.os) + ctx.label.name + _shared_lib_extension(zigtargetinfo.triple.os))
+        solib_parents = [""]
 
     outputs.append(default_output)
 
@@ -330,6 +339,22 @@ The `cdeps` attribute of `zig_build` is deprecated, use `deps` instead.
             transitive_inputs = transitive_inputs,
         )
 
+        cdeps_inputs = []
+
+        # zig_static_library already contains the transitive C dependencies.
+        if linkmode == "zig" and kind != "zig_static_library":
+            # Add all cdeps linker inputs to the sandbox and zig args.
+            zig_cdeps_linker_inputs(
+                linking_context = root_module.cc_info.linking_context,
+                solib_parents = solib_parents,
+                os = zigtargetinfo.triple.os,
+                inputs = cdeps_inputs,
+                args = args,
+                data = direct_data,
+            )
+
+            transitive_inputs.append(depset(cdeps_inputs))
+
     zig_module_specifications(
         root_module = root_module,
         args = args,
@@ -390,29 +415,7 @@ The `cdeps` attribute of `zig_build` is deprecated, use `deps` instead.
                 linking_contexts = [linking_context, root_module.cc_info.linking_context],
             )
         else:
-            # Calculate the RPATH components to discover the solib tree.
-            # See https://github.com/bazelbuild/bazel/blob/7.0.0/src/main/java/com/google/devtools/build/lib/rules/cpp/LibrariesToLinkCollector.java#L177
-            # TODO: Implement case 8b.
-            solib_parents = [
-                "/".join([".." for _ in ctx.label.package.split("/")]),
-                paths.join(default_output.basename + ".runfiles", ctx.workspace_name),
-            ]
-
             args.add(default_output, format = "-femit-bin=%s")
-
-            cdeps_inputs = []
-            if root_module.cc_info:
-                # Add all cdeps linker inputs to the sandbox and zig args.
-                zig_cdeps_linker_inputs(
-                    linking_context = root_module.cc_info.linking_context,
-                    solib_parents = solib_parents,
-                    os = zigtargetinfo.triple.os,
-                    inputs = cdeps_inputs,
-                    args = args,
-                    data = direct_data,
-                )
-
-            inputs = depset(cdeps_inputs, transitive = [inputs])
 
             ctx.actions.run(
                 outputs = [default_output],
@@ -483,29 +486,7 @@ The `cdeps` attribute of `zig_build` is deprecated, use `deps` instead.
                 linking_contexts = [linking_context, root_module.cc_info.linking_context],
             )
         else:
-            # Calculate the RPATH components to discover the solib tree.
-            # See https://github.com/bazelbuild/bazel/blob/7.0.0/src/main/java/com/google/devtools/build/lib/rules/cpp/LibrariesToLinkCollector.java#L177
-            # TODO: Implement case 8b.
-            solib_parents = [
-                "/".join([".." for _ in ctx.label.package.split("/")]),
-                paths.join(default_output.basename + ".runfiles", ctx.workspace_name),
-            ]
-
             args.add(default_output, format = "-femit-bin=%s")
-
-            cdeps_inputs = []
-            if root_module.cc_info:
-                # Add all cdeps linker inputs to the sandbox and zig args.
-                zig_cdeps_linker_inputs(
-                    linking_context = root_module.cc_info.linking_context,
-                    solib_parents = solib_parents,
-                    os = zigtargetinfo.triple.os,
-                    inputs = cdeps_inputs,
-                    args = args,
-                    data = direct_data,
-                )
-
-            inputs = depset(cdeps_inputs, transitive = [inputs])
 
             ctx.actions.run(
                 outputs = [default_output],
@@ -582,20 +563,6 @@ The `cdeps` attribute of `zig_build` is deprecated, use `deps` instead.
 
         else:
             args.add(default_output, format = "-femit-bin=%s")
-
-            cdeps_inputs = []
-            if root_module.cc_info:
-                # Add all cdeps linker inputs to the sandbox and zig args.
-                zig_cdeps_linker_inputs(
-                    linking_context = root_module.cc_info.linking_context,
-                    solib_parents = [""],
-                    os = zigtargetinfo.triple.os,
-                    inputs = cdeps_inputs,
-                    args = args,
-                    data = direct_data,
-                )
-
-            inputs = depset(cdeps_inputs, transitive = [inputs])
 
             ctx.actions.run(
                 outputs = [default_output],

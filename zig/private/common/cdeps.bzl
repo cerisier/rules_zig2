@@ -3,6 +3,14 @@
 load("@bazel_skylib//lib:paths.bzl", "paths")
 
 def zig_cdeps_copts(*, compilation_context, args, transitive_inputs):
+    """
+    TODO(cerisier)
+
+    Args:
+        compilation_context: A cc_common.CompilationContext instance.
+        args: An Args object to which compilation arguments will be added.
+        transitive_inputs: A depset to which input files will be added.
+    """
     args.add_all(compilation_context.defines, format_each = "-D%s")
     args.add_all(compilation_context.includes, format_each = "-I%s")
 
@@ -18,6 +26,17 @@ def zig_cdeps_copts(*, compilation_context, args, transitive_inputs):
     transitive_inputs.append(compilation_context.headers)
 
 def zig_cdeps_linker_inputs(*, linking_context, solib_parents, os, inputs, args, data):
+    """
+    TODO(cerisier)
+
+    Args:
+        linking_context: A cc_common.LinkingContext instance.
+        solib_parents: A list of strings representing the solib parent directories.
+        os: A string representing the target operating system.
+        inputs: A depset to which input files will be added.
+        args: An Args object to which linker arguments will be added.
+        data: A list to which data files will be added.
+    """
     all_libraries = []
     dynamic_libraries = []
     for link in linking_context.linker_inputs.to_list():

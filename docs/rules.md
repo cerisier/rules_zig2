@@ -359,7 +359,7 @@ zig_module(
 load("@rules_zig//zig:defs.bzl", "zig_shared_library")
 
 zig_shared_library(<a href="#zig_shared_library-name">name</a>, <a href="#zig_shared_library-deps">deps</a>, <a href="#zig_shared_library-srcs">srcs</a>, <a href="#zig_shared_library-data">data</a>, <a href="#zig_shared_library-cdeps">cdeps</a>, <a href="#zig_shared_library-compiler_runtime">compiler_runtime</a>, <a href="#zig_shared_library-copts">copts</a>, <a href="#zig_shared_library-csrcs">csrcs</a>, <a href="#zig_shared_library-extra_docs">extra_docs</a>,
-                   <a href="#zig_shared_library-extra_srcs">extra_srcs</a>, <a href="#zig_shared_library-linker_script">linker_script</a>, <a href="#zig_shared_library-main">main</a>, <a href="#zig_shared_library-strip_debug_symbols">strip_debug_symbols</a>)
+                   <a href="#zig_shared_library-extra_srcs">extra_srcs</a>, <a href="#zig_shared_library-linker_script">linker_script</a>, <a href="#zig_shared_library-main">main</a>, <a href="#zig_shared_library-shared_lib_name">shared_lib_name</a>, <a href="#zig_shared_library-strip_debug_symbols">strip_debug_symbols</a>)
 </pre>
 
 Builds a Zig shared library, produces a shared or dynamic library.
@@ -405,6 +405,7 @@ zig_shared_library(
 | <a id="zig_shared_library-extra_srcs"></a>extra_srcs |  Other files required to build the target, e.g. files embedded using `@embedFile`.   | <a href="https://bazel.build/concepts/labels">List of labels</a> | optional |  `[]`  |
 | <a id="zig_shared_library-linker_script"></a>linker_script |  Custom linker script for the target.   | <a href="https://bazel.build/concepts/labels">Label</a> | optional |  `None`  |
 | <a id="zig_shared_library-main"></a>main |  The main source file.   | <a href="https://bazel.build/concepts/labels">Label</a> | required |  |
+| <a id="zig_shared_library-shared_lib_name"></a>shared_lib_name |  -   | String | optional |  `""`  |
 | <a id="zig_shared_library-strip_debug_symbols"></a>strip_debug_symbols |  Whether to pass '-fstrip' to the zig compiler to remove debug symbols.   | Boolean | optional |  `False`  |
 
 

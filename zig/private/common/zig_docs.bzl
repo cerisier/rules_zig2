@@ -51,14 +51,11 @@ def zig_docs_impl(ctx, *, kind):
     zigtargetinfo = ctx.toolchains["//zig/target:toolchain_type"].zigtargetinfo
 
     files = None
-    direct_data = []
 
     outputs = []
 
     direct_inputs = []
     transitive_inputs = []
-
-    solib_parents = []
 
     args = ctx.actions.args()
     args.use_param_file("@%s")

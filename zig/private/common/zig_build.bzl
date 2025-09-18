@@ -1,6 +1,7 @@
 """Common implementation of the zig_binary|library|test rules."""
 
 load("@bazel_skylib//lib:paths.bzl", "paths")
+load("@build_bazel_rules_android//:cc_common_link.bzl", "cc_common_link")
 load("@rules_cc//cc:find_cc_toolchain.bzl", "use_cc_toolchain")
 load("@rules_cc//cc/common:cc_common.bzl", "cc_common")
 load("@rules_cc//cc/common:cc_info.bzl", "CcInfo")
@@ -121,6 +122,13 @@ The default behavior is to include them in executables and shared libraries.
 } | BAZEL_BUILTIN_ATTRS
 
 COMMON_LIBRARY_ATTRS = {}
+
+SHARED_LIBRARY_ATTRS = {
+    "shared_lib_name": attr.string(
+        doc = "",
+        mandatory = False,
+    ),
+}
 
 BINARY_ATTRS = {
     "env": attr.string_dict(
@@ -335,7 +343,7 @@ The `cdeps` attribute of `zig_build` is deprecated, use `deps` instead.
     )
 
     if kind == "zig_binary":
-        executable = None
+        executable = ctx.actions.declare_file(ctx.label.name + _executable_extension(zigtargetinfo.triple.os))
 
         if linkmode == "cc":
             static_lib = ctx.actions.declare_file(ctx.label.name + _static_lib_extension(zigtargetinfo.triple.os))
@@ -366,20 +374,17 @@ The `cdeps` attribute of `zig_build` is deprecated, use `deps` instead.
                     ),
                 ]),
             )
-            link_outputs = cc_common.link(
+            link_outputs = cc_common_link(
                 actions = ctx.actions,
                 feature_configuration = feature_configuration,
                 cc_toolchain = cc_toolchain,
                 name = ctx.label.name,
                 user_link_flags = [],  #ctx.attr.linkopts,
                 output_type = "executable",
+                main_output = executable,
                 linking_contexts = [linking_context, root_module.cc_info.linking_context],
             )
-
-            executable = link_outputs.executable
         else:
-            executable = ctx.actions.declare_file(ctx.label.name + _executable_extension(zigtargetinfo.triple.os))
-
             # Calculate the RPATH components to discover the solib tree.
             # See https://github.com/bazelbuild/bazel/blob/7.0.0/src/main/java/com/google/devtools/build/lib/rules/cpp/LibrariesToLinkCollector.java#L177
             # TODO: Implement case 8b.
@@ -422,7 +427,7 @@ The `cdeps` attribute of `zig_build` is deprecated, use `deps` instead.
             ),
         )
     elif kind == "zig_test":
-        executable = None
+        executable = ctx.actions.declare_file(ctx.label.name + _executable_extension(zigtargetinfo.triple.os))
 
         if linkmode == "cc":
             bc = ctx.actions.declare_file(ctx.label.name + ".bc")
@@ -473,21 +478,17 @@ The `cdeps` attribute of `zig_build` is deprecated, use `deps` instead.
                     ),
                 ]),
             )
-            link_outputs = cc_common.link(
+            link_outputs = cc_common_link(
                 actions = ctx.actions,
                 feature_configuration = feature_configuration,
                 cc_toolchain = cc_toolchain,
                 name = ctx.label.name,
                 user_link_flags = [],  #ctx.attr.linkopts,
                 output_type = "executable",
+                main_output = executable,
                 linking_contexts = [linking_context, root_module.cc_info.linking_context],
             )
-
-            executable = link_outputs.executable
-
         else:
-            executable = ctx.actions.declare_file(ctx.label.name + _executable_extension(zigtargetinfo.triple.os))
-
             # Calculate the RPATH components to discover the solib tree.
             # See https://github.com/bazelbuild/bazel/blob/7.0.0/src/main/java/com/google/devtools/build/lib/rules/cpp/LibrariesToLinkCollector.java#L177
             # TODO: Implement case 8b.
@@ -576,8 +577,13 @@ The `cdeps` attribute of `zig_build` is deprecated, use `deps` instead.
         ])
 
     elif kind == "zig_shared_library":
-        shared_library = None
         cc_info = None
+
+        shared_library = None
+        if (ctx.attr.shared_lib_name):
+            shared_library = ctx.actions.declare_file(ctx.attr.shared_lib_name)
+        else:
+            shared_library = ctx.actions.declare_file(_lib_prefix(zigtargetinfo.triple.os) + ctx.label.name + _shared_lib_extension(zigtargetinfo.triple.os))
 
         if linkmode == "cc":
             static_lib = ctx.actions.declare_file(ctx.label.name + _static_lib_extension(zigtargetinfo.triple.os))
@@ -608,17 +614,16 @@ The `cdeps` attribute of `zig_build` is deprecated, use `deps` instead.
                     ),
                 ]),
             )
-            link_outputs = cc_common.link(
+            link_outputs = cc_common_link(
                 actions = ctx.actions,
                 feature_configuration = feature_configuration,
                 cc_toolchain = cc_toolchain,
                 name = ctx.label.name,
                 user_link_flags = [],  #ctx.attr.linkopts,
                 output_type = "dynamic_library",
+                main_output = shared_library,
                 linking_contexts = [linking_context, root_module.cc_info.linking_context],
             )
-
-            shared_library = link_outputs.library_to_link.dynamic_library
 
             cc_info = CcInfo(
                 linking_context = cc_common.create_linking_context(
@@ -631,7 +636,6 @@ The `cdeps` attribute of `zig_build` is deprecated, use `deps` instead.
                 ),
             )
         else:
-            shared_library = ctx.actions.declare_file(_lib_prefix(zigtargetinfo.triple.os) + ctx.label.name + _shared_lib_extension(zigtargetinfo.triple.os))
             args.add(shared_library, format = "-femit-bin=%s")
 
             cdeps_inputs = []

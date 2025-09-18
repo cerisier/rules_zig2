@@ -339,10 +339,6 @@ The `cdeps` attribute of `zig_build` is deprecated, use `deps` instead.
 
         if linkmode == "cc":
             static_lib = ctx.actions.declare_file(ctx.label.name + _static_lib_extension(zigtargetinfo.triple.os))
-            global_args.add_all([
-                #TODO(cerisier): ?
-                # "-fPIC",
-            ])
             args.add(static_lib, format = "-femit-bin=%s")
             ctx.actions.run(
                 outputs = [static_lib],
@@ -584,11 +580,6 @@ The `cdeps` attribute of `zig_build` is deprecated, use `deps` instead.
         cc_info = None
 
         if linkmode == "cc":
-            global_args.add_all([
-                "-fPIC",
-                "-lc",
-            ])
-
             static_lib = ctx.actions.declare_file(ctx.label.name + _static_lib_extension(zigtargetinfo.triple.os))
             args.add(static_lib, format = "-femit-bin=%s")
             ctx.actions.run(

@@ -84,3 +84,8 @@ bazel_dep(name = "cgrindel_bazel_starlib", version = "0.27.0", dev_dependency = 
 cc_common_link = use_repo_rule("//zig/private/bzlmod:cc_common_link.bzl", "cc_common_link")
 
 cc_common_link(name = "build_bazel_rules_android")
+
+zls = use_extension("//zig/zls:zls_toolchain.bzl", "zls_toolchains")
+use_repo(zls, "zls_toolchains")
+
+register_toolchains("@zls_toolchains//:all")

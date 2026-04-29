@@ -57,33 +57,6 @@ _write_module_specs_args = rule(
     },
 )
 
-def _global_c_module_impl(ctx):
-    zigtoolchaininfo = ctx.toolchains["//zig:toolchain_type"].zigtoolchaininfo
-    return [
-        zig_translate_c(
-            ctx = ctx,
-            name = "c",
-            canonical_name = "c",
-            zigtoolchaininfo = zigtoolchaininfo,
-            global_args = ctx.actions.args(),
-            cc_infos = [dep[CcInfo] for dep in ctx.attr.cdeps],
-        ),
-    ]
-
-_global_c_module = rule(
-    _global_c_module_impl,
-    attrs = {
-        "cdeps": attr.label_list(
-            mandatory = True,
-            providers = [CcInfo],
-        ),
-    },
-    fragments = ["cpp"],
-    toolchains = [
-        "//zig:toolchain_type",
-    ] + use_cc_toolchain(mandatory = False),
-)
-
 def _module_specs_test(name, *, mod, expected, cmod = None):
     _write_expected(
         name = name + "_expected",
@@ -130,18 +103,6 @@ def _dep(import_name, label):
 
 def _module(label, src):
     return "'-M{}={}'".format(_canonical_name(label), src)
-
-def _translate_c_name(label, import_name):
-    return "{}__{}".format(_canonical_name(label), escape_label_str(import_name))
-
-def _translate_c_module(label, import_name):
-    label = Label(label)
-    name = _translate_c_name(str(label), import_name)
-    return "'-M{name}={{bin_dir}}/{package}/{target}_c.zig'".format(
-        name = name,
-        package = label.package,
-        target = label.name,
-    )
 
 def module_info_test_suite(name):
     """Generate module info test suite.

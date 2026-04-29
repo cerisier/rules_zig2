@@ -15,6 +15,7 @@ cc_library(
     name = "data_c",
     srcs = ["data.c"],
     hdrs = ["data.h"],
+    visibility = ["//zig/tests:__pkg__"],
 )
 
 zig_c_library(

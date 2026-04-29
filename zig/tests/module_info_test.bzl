@@ -1,113 +1,31 @@
-"""Unit tests for ZigModuleInfo functions.
-"""
+"""Unit tests for ZigModuleInfo functions."""
 
-load("@bazel_skylib//lib:paths.bzl", "paths")
 load("@bazel_skylib//rules:diff_test.bzl", "diff_test")
-load("//zig/private/common:escape_label.bzl", "escape_label")
+load("@rules_cc//cc:find_cc_toolchain.bzl", "use_cc_toolchain")
+load("@rules_cc//cc/common:cc_info.bzl", "CcInfo")
+load("//zig/private/common:escape_label.bzl", "escape_label", "escape_label_str")
+load("//zig/private/common:translate_c.bzl", "zig_translate_c")
 load(
     "//zig/private/providers:zig_module_info.bzl",
     "ZigModuleInfo",
     "zig_module_specifications",
 )
 
-def _bazel_builtin_canonical_name(label):
-    return "bazel_builtin_" + escape_label(label = label)
-
-def _bazel_builtin_file_name(ctx, label):
-    return paths.join(
-        ctx.bin_dir.path,
-        label.workspace_root,
-        label.package,
-        _bazel_builtin_canonical_name(label) + ".zig",
-    )
-
-def _bazel_builtin_mod_flags(ctx, label):
-    return ["'-M{}={}'".format(
-        _bazel_builtin_canonical_name(label),
-        _bazel_builtin_file_name(ctx, label),
-    )]
-
-def _bazel_builtin_dep(label):
-    return "'bazel_builtin={}'".format(_bazel_builtin_canonical_name(label))
-
-def _write_simple_module_expected_specs_args_impl(ctx):
-    mod = ctx.attr.mod[ZigModuleInfo]
-
-    expected = []
-    expected.extend(["--dep", _bazel_builtin_dep(ctx.attr.mod.label)])
-    expected.extend(["'-M{name}={src}'".format(
-        name = mod.canonical_name,
-        src = ctx.file.mod_main.path,
-    )])
-    expected.extend(_bazel_builtin_mod_flags(ctx, ctx.attr.mod.label))
+def _write_expected_impl(ctx):
+    lines = [
+        line.replace("{bin_dir}", ctx.bin_dir.path)
+        for line in ctx.attr.lines
+    ]
 
     ctx.actions.write(
         output = ctx.outputs.out,
-        content = "\n".join(expected) + "\n",
+        content = "\n".join(lines) + "\n",
     )
 
-_write_simple_module_expected_specs_args = rule(
-    _write_simple_module_expected_specs_args_impl,
+_write_expected = rule(
+    _write_expected_impl,
     attrs = {
-        "mod": attr.label(providers = [ZigModuleInfo]),
-        "mod_main": attr.label(allow_single_file = True),
-        "out": attr.output(mandatory = True),
-    },
-)
-
-def _write_transitive_modules_with_zigopts_expected_args_impl(ctx):
-    mods = {
-        mod.label.name: mod[ZigModuleInfo]
-        for mod in ctx.attr.mods
-    }
-
-    mod_mains = {
-        mod.label.name: main
-        for (mod, main) in zip(ctx.attr.mods, ctx.files.mod_mains)
-    }
-
-    bazel_builtins = {
-        mod.label.name: struct(
-            mod_flags = _bazel_builtin_mod_flags(ctx, mod.label),
-            dep = _bazel_builtin_dep(mod.label),
-            file = [
-                file
-                for file in mods[mod.label.name].transitive_inputs.to_list()
-                if file.path == _bazel_builtin_file_name(ctx, mod.label)
-            ],
-        )
-        for mod in ctx.attr.mods
-    }
-
-    expected = []
-    expected.extend([
-        "--dep",
-        "'a={}'".format(mods["a"].canonical_name),
-        "--dep",
-        bazel_builtins["b"].dep,
-        "-DFOR_MODULE_B",
-        "'-M{}={}'".format(mods["b"].canonical_name, mod_mains["b"].path),
-    ])
-
-    expected.extend(bazel_builtins["a"].mod_flags)
-    expected.extend([
-        "--dep",
-        bazel_builtins["a"].dep,
-        "-DFOR_MODULE_A",
-        "'-M{}={}'".format(mods["a"].canonical_name, mod_mains["a"].path),
-    ])
-    expected.extend(bazel_builtins["b"].mod_flags)
-
-    ctx.actions.write(
-        output = ctx.outputs.out,
-        content = "\n".join(expected) + "\n",
-    )
-
-_write_transitive_modules_with_zigopts_expected_args = rule(
-    _write_transitive_modules_with_zigopts_expected_args_impl,
-    attrs = {
-        "mods": attr.label_list(providers = [ZigModuleInfo]),
-        "mod_mains": attr.label_list(allow_files = True),
+        "lines": attr.string_list(mandatory = True),
         "out": attr.output(mandatory = True),
     },
 )
@@ -133,247 +51,97 @@ def _write_module_specs_args_impl(ctx):
 _write_module_specs_args = rule(
     _write_module_specs_args_impl,
     attrs = {
-        "mod": attr.label(providers = [ZigModuleInfo]),
         "cmod": attr.label(providers = [ZigModuleInfo]),
+        "mod": attr.label(providers = [ZigModuleInfo]),
         "out": attr.output(mandatory = True),
     },
 )
 
-def _write_nested_module_expected_specs_args_impl(ctx):
-    mods = {
-        mod.label.name: mod[ZigModuleInfo]
-        for mod in ctx.attr.mods
-    }
+def _global_c_module_impl(ctx):
+    zigtoolchaininfo = ctx.toolchains["//zig:toolchain_type"].zigtoolchaininfo
+    return [
+        zig_translate_c(
+            ctx = ctx,
+            name = "c",
+            canonical_name = "c",
+            zigtoolchaininfo = zigtoolchaininfo,
+            global_args = ctx.actions.args(),
+            cc_infos = [dep[CcInfo] for dep in ctx.attr.cdeps],
+        ),
+    ]
 
-    mod_mains = {
-        mod.label.name: main
-        for (mod, main) in zip(ctx.attr.mods, ctx.files.mod_mains)
-    }
+_global_c_module = rule(
+    _global_c_module_impl,
+    attrs = {
+        "cdeps": attr.label_list(
+            mandatory = True,
+            providers = [CcInfo],
+        ),
+    },
+    fragments = ["cpp"],
+    toolchains = [
+        "//zig:toolchain_type",
+    ] + use_cc_toolchain(mandatory = False),
+)
 
-    bazel_builtins = {
-        mod.label.name: struct(
-            mod_flags = _bazel_builtin_mod_flags(ctx, mod.label),
-            dep = _bazel_builtin_dep(mod.label),
-            file = [
-                file
-                for file in mods[mod.label.name].transitive_inputs.to_list()
-                if file.path == _bazel_builtin_file_name(ctx, mod.label)
-            ],
-        )
-        for mod in ctx.attr.mods
-    }
-
-    expected = []
-    expected.extend([
-        "--dep",
-        "'b={}'".format(mods["b"].canonical_name),
-        "--dep",
-        "'c={}'".format(mods["c"].canonical_name),
-        "--dep",
-        "'d={}'".format(mods["d"].canonical_name),
-        "--dep",
-        bazel_builtins["a"].dep,
-        "'-M{}={}'".format(mods["a"].canonical_name, mod_mains["a"].path),
-    ])
-
-    expected.extend(bazel_builtins["e"].mod_flags)
-    expected.extend([
-        "--dep",
-        bazel_builtins["e"].dep,
-        "'-M{}={}'".format(mods["e"].canonical_name, mod_mains["e"].path),
-    ])
-    expected.extend(bazel_builtins["b"].mod_flags)
-    expected.extend(bazel_builtins["c"].mod_flags)
-    expected.extend(bazel_builtins["f"].mod_flags)
-
-    expected.extend([
-        "--dep",
-        "'e={}'".format(mods["e"].canonical_name),
-        "--dep",
-        bazel_builtins["f"].dep,
-        "'-M{}={}'".format(mods["f"].canonical_name, mod_mains["f"].path),
-    ])
-    expected.extend(bazel_builtins["d"].mod_flags)
-    expected.extend([
-        "--dep",
-        "'e={}'".format(mods["e"].canonical_name),
-        "--dep",
-        bazel_builtins["b"].dep,
-        "'-M{}={}'".format(mods["b"].canonical_name, mod_mains["b"].path),
-    ])
-    expected.extend([
-        "--dep",
-        "'e={}'".format(mods["e"].canonical_name),
-        "--dep",
-        bazel_builtins["c"].dep,
-        "'-M{}={}'".format(mods["c"].canonical_name, mod_mains["c"].path),
-    ])
-    expected.extend([
-        "--dep",
-        "'f={}'".format(mods["f"].canonical_name),
-        "--dep",
-        bazel_builtins["d"].dep,
-        "'-M{}={}'".format(mods["d"].canonical_name, mod_mains["d"].path),
-    ])
-    expected.extend(bazel_builtins["a"].mod_flags)
-
-    ctx.actions.write(
-        output = ctx.outputs.out,
-        content = "\n".join(expected) + "\n",
+def _module_specs_test(name, *, mod, expected, cmod = None):
+    _write_expected(
+        name = name + "_expected",
+        lines = expected,
+        out = name + "_expected.txt",
+        tags = ["manual"],
     )
 
-_write_nested_module_expected_specs_args = rule(
-    _write_nested_module_expected_specs_args_impl,
-    attrs = {
-        "mods": attr.label_list(providers = [ZigModuleInfo]),
-        "mod_mains": attr.label_list(allow_files = True),
-        "out": attr.output(mandatory = True),
-    },
-)
-
-def _write_simple_module_with_c_expected_specs_args_impl(ctx):
-    mods = {
-        mod.label.name: mod[ZigModuleInfo]
-        for mod in ctx.attr.mods
-    }
-
-    bazel_builtins = {
-        mod.label.name: struct(
-            mod_flags = _bazel_builtin_mod_flags(ctx, mod.label),
-            dep = _bazel_builtin_dep(mod.label),
-            file = [
-                file
-                for file in mods[mod.label.name].transitive_inputs.to_list()
-                if file.path == _bazel_builtin_file_name(ctx, mod.label)
-            ],
-        )
-        for mod in ctx.attr.mods
-    }
-
-    expected = []
-    expected.extend(["--dep", "'data_c_zig={}'".format(mods["data_c_zig"].canonical_name)])
-    expected.extend(["--dep", bazel_builtins["data"].dep])
-    expected.extend(["'-M{name}={src}'".format(
-        name = mods["data"].canonical_name,
-        src = mods["data"].module_context.main,
-    )])
-    expected.extend(["'-M{}={}'".format(mods["data_c_zig"].canonical_name, mods["data_c_zig"].module_context.main)])
-    expected.extend(bazel_builtins["data"].mod_flags)
-
-    ctx.actions.write(
-        output = ctx.outputs.out,
-        content = "\n".join(expected) + "\n",
+    _write_module_specs_args(
+        name = name + "_actual",
+        mod = mod,
+        cmod = cmod,
+        out = name + "_actual.txt",
+        tags = ["manual"],
     )
 
-_write_simple_module_with_c_expected_specs_args = rule(
-    _write_simple_module_with_c_expected_specs_args_impl,
-    attrs = {
-        "mods": attr.label_list(providers = [ZigModuleInfo]),
-        "mod_mains": attr.label_list(allow_files = True),
-        "out": attr.output(mandatory = True),
-    },
-)
-
-def _write_simple_module_with_global_c_expected_specs_args_impl(ctx):
-    mods = {
-        mod.label.name: mod[ZigModuleInfo]
-        for mod in ctx.attr.mods
-    }
-
-    bazel_builtins = {
-        mod.label.name: struct(
-            mod_flags = _bazel_builtin_mod_flags(ctx, mod.label),
-            dep = _bazel_builtin_dep(mod.label),
-            file = [
-                file
-                for file in mods[mod.label.name].transitive_inputs.to_list()
-                if file.path == _bazel_builtin_file_name(ctx, mod.label)
-            ],
-        )
-        for mod in ctx.attr.mods
-    }
-
-    expected = []
-
-    expected.extend(["--dep", bazel_builtins["data_global_c"].dep])
-    expected.extend(["--dep", "'c=c'"])
-    expected.extend(["'-M{name}={src}'".format(
-        name = mods["data_global_c"].canonical_name,
-        src = mods["data_global_c"].module_context.main,
-    )])
-    expected.extend(bazel_builtins["data_global_c"].mod_flags)
-    expected.extend(["'-M{name}={src}'".format(
-        name = mods["data_c_zig"].canonical_name,
-        src = mods["data_c_zig"].module_context.main,
-    )])
-
-    ctx.actions.write(
-        output = ctx.outputs.out,
-        content = "\n".join(expected) + "\n",
+    diff_test(
+        name = name,
+        failure_message = "generated module specifications do not match",
+        file1 = name + "_expected.txt",
+        file2 = name + "_actual.txt",
+        size = "small",
     )
 
-_write_simple_module_with_global_c_expected_specs_args = rule(
-    _write_simple_module_with_global_c_expected_specs_args_impl,
-    attrs = {
-        "mods": attr.label_list(providers = [ZigModuleInfo]),
-        "mod_mains": attr.label_list(allow_files = True),
-        "out": attr.output(mandatory = True),
-    },
-)
+def _canonical_name(label):
+    return escape_label(label = Label(label))
 
-def _write_simple_module_with_import_name_specs_args_impl(ctx):
-    mods = {
-        mod.label.name: mod[ZigModuleInfo]
-        for mod in ctx.attr.mods
-    }
+def _bazel_builtin_name(label):
+    return "bazel_builtin_" + _canonical_name(label)
 
-    mod_mains = {
-        mod.label.name: main
-        for (mod, main) in zip(ctx.attr.mods, ctx.files.mod_mains)
-    }
+def _bazel_builtin_dep(label):
+    return "'bazel_builtin={}'".format(_bazel_builtin_name(label))
 
-    bazel_builtins = {
-        mod.label.name: struct(
-            mod_flags = _bazel_builtin_mod_flags(ctx, mod.label),
-            dep = _bazel_builtin_dep(mod.label),
-            file = [
-                file
-                for file in mods[mod.label.name].transitive_inputs.to_list()
-                if file.path == _bazel_builtin_file_name(ctx, mod.label)
-            ],
-        )
-        for mod in ctx.attr.mods
-    }
-
-    expected = []
-
-    expected.extend(["--dep", "'import-name-module/data={}'".format(mods["data"].canonical_name)])
-    expected.extend(["--dep", bazel_builtins["main"].dep])
-    expected.extend(["'-M{canonical_name}={src}'".format(
-        canonical_name = mods["main"].canonical_name,
-        src = mod_mains["main"].path,
-    )])
-
-    expected.extend(bazel_builtins["data"].mod_flags)
-
-    expected.extend(["--dep", bazel_builtins["data"].dep])
-    expected.extend(["'-M{}={}'".format(mods["data"].canonical_name, mod_mains["data"].path)])
-
-    expected.extend(bazel_builtins["main"].mod_flags)
-
-    ctx.actions.write(
-        output = ctx.outputs.out,
-        content = "\n".join(expected) + "\n",
+def _bazel_builtin_module(label):
+    label = Label(label)
+    name = _bazel_builtin_name(str(label))
+    return "'-M{name}={{bin_dir}}/{package}/{name}.zig'".format(
+        name = name,
+        package = label.package,
     )
 
-_write_simple_module_with_import_name_specs_args = rule(
-    _write_simple_module_with_import_name_specs_args_impl,
-    attrs = {
-        "mods": attr.label_list(providers = [ZigModuleInfo]),
-        "mod_mains": attr.label_list(allow_files = True),
-        "out": attr.output(mandatory = True),
-    },
-)
+def _dep(import_name, label):
+    return "'{}={}'".format(import_name, _canonical_name(label))
+
+def _module(label, src):
+    return "'-M{}={}'".format(_canonical_name(label), src)
+
+def _translate_c_name(label, import_name):
+    return "{}__{}".format(_canonical_name(label), escape_label_str(import_name))
+
+def _translate_c_module(label, import_name):
+    label = Label(label)
+    name = _translate_c_name(str(label), import_name)
+    return "'-M{name}={{bin_dir}}/{package}/{target}_c.zig'".format(
+        name = name,
+        package = label.package,
+        target = label.name,
+    )
 
 def module_info_test_suite(name):
     """Generate module info test suite.
@@ -381,179 +149,131 @@ def module_info_test_suite(name):
     Args:
         name: The name of the test suite.
     """
-    _write_simple_module_expected_specs_args(
-        name = name + "_simple_expected",
-        mod = "//zig/tests/multiple-sources-module:data",
-        mod_main = "//zig/tests/multiple-sources-module:data.zig",
-        out = name + "_simple_expected.txt",
-        tags = ["manual"],
-    )
-
-    _write_module_specs_args(
-        name = name + "_simple_actual",
-        mod = "//zig/tests/multiple-sources-module:data",
-        out = name + "_simple_actual.txt",
-        tags = ["manual"],
-    )
-
-    diff_test(
+    _module_specs_test(
         name = name + "_simple_diff_test",
-        failure_message = "generated module specifications do not match",
-        file1 = name + "_simple_expected.txt",
-        file2 = name + "_simple_actual.txt",
-        size = "small",
-    )
-
-    _write_transitive_modules_with_zigopts_expected_args(
-        name = name + "_transitive_with_zigopts_expected",
-        mods = [
-            "//zig/tests/transitive-modules-zigopts:a",
-            "//zig/tests/transitive-modules-zigopts:b",
+        mod = "//zig/tests/multiple-sources-module:data",
+        expected = [
+            "--dep",
+            _bazel_builtin_dep("//zig/tests/multiple-sources-module:data"),
+            _module("//zig/tests/multiple-sources-module:data", "zig/tests/multiple-sources-module/data.zig"),
+            _bazel_builtin_module("//zig/tests/multiple-sources-module:data"),
         ],
-        mod_mains = [
-            "//zig/tests/transitive-modules-zigopts:a.zig",
-            "//zig/tests/transitive-modules-zigopts:b.zig",
-        ],
-        out = name + "_transitive_with_zigopts_expected.txt",
-        tags = ["manual"],
     )
 
-    _write_module_specs_args(
-        name = name + "_transitive_with_zigopts_actual",
-        mod = "//zig/tests/transitive-modules-zigopts:b",
-        out = name + "_transitive_with_zigopts_actual.txt",
-        tags = ["manual"],
-    )
-
-    diff_test(
+    _module_specs_test(
         name = name + "_transitive_with_zigopts_diff_test",
-        failure_message = "generated module specifications do not match",
-        file1 = name + "_transitive_with_zigopts_expected.txt",
-        file2 = name + "_transitive_with_zigopts_actual.txt",
-        size = "small",
-    )
-
-    _write_simple_module_with_c_expected_specs_args(
-        name = name + "_simple_with_c_expected",
-        mods = [
-            "//zig/tests/translate-c-modules:data_c_zig",
-            "//zig/tests/translate-c-modules:data",
+        mod = "//zig/tests/transitive-modules-zigopts:b",
+        expected = [
+            "--dep",
+            _dep("a", "//zig/tests/transitive-modules-zigopts:a"),
+            "--dep",
+            _bazel_builtin_dep("//zig/tests/transitive-modules-zigopts:b"),
+            "-DFOR_MODULE_B",
+            _module("//zig/tests/transitive-modules-zigopts:b", "zig/tests/transitive-modules-zigopts/b.zig"),
+            _bazel_builtin_module("//zig/tests/transitive-modules-zigopts:a"),
+            "--dep",
+            _bazel_builtin_dep("//zig/tests/transitive-modules-zigopts:a"),
+            "-DFOR_MODULE_A",
+            _module("//zig/tests/transitive-modules-zigopts:a", "zig/tests/transitive-modules-zigopts/a.zig"),
+            _bazel_builtin_module("//zig/tests/transitive-modules-zigopts:b"),
         ],
-        mod_mains = [
-            "//zig/tests/translate-c-modules:data.zig",
-        ],
-        out = name + "_simple_with_c_expected.txt",
-        tags = ["manual"],
     )
 
-    _write_module_specs_args(
-        name = name + "_simple_with_c_actual",
-        mod = "//zig/tests/translate-c-modules:data",
-        out = name + "_simple_with_c_actual.txt",
-        tags = ["manual"],
-    )
-
-    diff_test(
+    _module_specs_test(
         name = name + "_simple_with_c_diff_test",
-        failure_message = "generated module specifications do not match",
-        file1 = name + "_simple_with_c_expected.txt",
-        file2 = name + "_simple_with_c_actual.txt",
-        size = "small",
+        mod = "//zig/tests/translate-c-modules:data",
+        expected = [
+            "--dep",
+            "'data_c_zig={}'".format(_translate_c_name("//zig/tests/translate-c-modules:data_c_zig", "data_c_zig")),
+            "--dep",
+            _bazel_builtin_dep("//zig/tests/translate-c-modules:data"),
+            _module("//zig/tests/translate-c-modules:data", "zig/tests/translate-c-modules/data.zig"),
+            _translate_c_module("//zig/tests/translate-c-modules:data_c_zig", "data_c_zig"),
+            _bazel_builtin_module("//zig/tests/translate-c-modules:data"),
+        ],
     )
 
-    _write_simple_module_with_global_c_expected_specs_args(
-        name = name + "_simple_with_global_c_expected",
-        mods = [
-            "//zig/tests/translate-c-modules:data_c_zig",
-            "//zig/tests/translate-c-modules:data_global_c",
-        ],
-        mod_mains = [
-            "//zig/tests/translate-c-modules:data_global_c.zig",
-        ],
-        out = name + "_simple_with_global_c_expected.txt",
+    _global_c_module(
+        name = name + "_global_c_module",
+        cdeps = ["//zig/tests/translate-c-modules:data_c"],
         tags = ["manual"],
     )
 
-    _write_module_specs_args(
-        name = name + "_simple_with_global_c_actual",
-        mod = "//zig/tests/translate-c-modules:data_global_c",
-        cmod = "//zig/tests/translate-c-modules:data_c_zig",
-        out = name + "_simple_with_global_c_actual.txt",
-        tags = ["manual"],
-    )
-
-    diff_test(
+    _module_specs_test(
         name = name + "_simple_with_global_c_diff_test",
-        failure_message = "generated module specifications do not match",
-        file1 = name + "_simple_with_global_c_expected.txt",
-        file2 = name + "_simple_with_global_c_actual.txt",
-        size = "small",
-    )
-
-    _write_nested_module_expected_specs_args(
-        name = name + "_nested_expected",
-        mods = [
-            "//zig/tests/nested-modules:a",
-            "//zig/tests/nested-modules:b",
-            "//zig/tests/nested-modules:c",
-            "//zig/tests/nested-modules:d",
-            "//zig/tests/nested-modules:e",
-            "//zig/tests/nested-modules:f",
+        mod = "//zig/tests/translate-c-modules:data_global_c",
+        cmod = ":" + name + "_global_c_module",
+        expected = [
+            "--dep",
+            _bazel_builtin_dep("//zig/tests/translate-c-modules:data_global_c"),
+            "--dep",
+            "'c=c'",
+            _module("//zig/tests/translate-c-modules:data_global_c", "zig/tests/translate-c-modules/data_global_c.zig"),
+            _bazel_builtin_module("//zig/tests/translate-c-modules:data_global_c"),
+            "'-Mc={bin_dir}/zig/tests/module_info_test_global_c_module_c.zig'",
         ],
-        mod_mains = [
-            "//zig/tests/nested-modules:a.zig",
-            "//zig/tests/nested-modules:b.zig",
-            "//zig/tests/nested-modules:c.zig",
-            "//zig/tests/nested-modules:d.zig",
-            "//zig/tests/nested-modules:e.zig",
-            "//zig/tests/nested-modules:f.zig",
-        ],
-        out = name + "_nested_expected.txt",
-        tags = ["manual"],
     )
 
-    _write_module_specs_args(
-        name = name + "_nested_actual",
-        mod = "//zig/tests/nested-modules:a",
-        out = name + "_nested_actual.txt",
-        tags = ["manual"],
-    )
-
-    diff_test(
+    _module_specs_test(
         name = name + "_nested_diff_test",
-        failure_message = "generated module specifications do not match",
-        file1 = name + "_nested_expected.txt",
-        file2 = name + "_nested_actual.txt",
-        size = "small",
-    )
-
-    _write_simple_module_with_import_name_specs_args(
-        name = name + "_import_name_module_expected",
-        mods = [
-            "//zig/tests/import-name-module:main",
-            "//zig/tests/import-name-module:data",
+        mod = "//zig/tests/nested-modules:a",
+        expected = [
+            "--dep",
+            _dep("b", "//zig/tests/nested-modules:b"),
+            "--dep",
+            _dep("c", "//zig/tests/nested-modules:c"),
+            "--dep",
+            _dep("d", "//zig/tests/nested-modules:d"),
+            "--dep",
+            _bazel_builtin_dep("//zig/tests/nested-modules:a"),
+            _module("//zig/tests/nested-modules:a", "zig/tests/nested-modules/a.zig"),
+            _bazel_builtin_module("//zig/tests/nested-modules:e"),
+            "--dep",
+            _bazel_builtin_dep("//zig/tests/nested-modules:e"),
+            _module("//zig/tests/nested-modules:e", "zig/tests/nested-modules/e.zig"),
+            _bazel_builtin_module("//zig/tests/nested-modules:b"),
+            _bazel_builtin_module("//zig/tests/nested-modules:c"),
+            _bazel_builtin_module("//zig/tests/nested-modules:f"),
+            "--dep",
+            _dep("e", "//zig/tests/nested-modules:e"),
+            "--dep",
+            _bazel_builtin_dep("//zig/tests/nested-modules:f"),
+            _module("//zig/tests/nested-modules:f", "zig/tests/nested-modules/f.zig"),
+            _bazel_builtin_module("//zig/tests/nested-modules:d"),
+            "--dep",
+            _dep("e", "//zig/tests/nested-modules:e"),
+            "--dep",
+            _bazel_builtin_dep("//zig/tests/nested-modules:b"),
+            _module("//zig/tests/nested-modules:b", "zig/tests/nested-modules/b.zig"),
+            "--dep",
+            _dep("e", "//zig/tests/nested-modules:e"),
+            "--dep",
+            _bazel_builtin_dep("//zig/tests/nested-modules:c"),
+            _module("//zig/tests/nested-modules:c", "zig/tests/nested-modules/c.zig"),
+            "--dep",
+            _dep("f", "//zig/tests/nested-modules:f"),
+            "--dep",
+            _bazel_builtin_dep("//zig/tests/nested-modules:d"),
+            _module("//zig/tests/nested-modules:d", "zig/tests/nested-modules/d.zig"),
+            _bazel_builtin_module("//zig/tests/nested-modules:a"),
         ],
-        mod_mains = [
-            "//zig/tests/import-name-module:main.zig",
-            "//zig/tests/import-name-module:data.zig",
-        ],
-        out = name + "_import_name_module_expected.txt",
-        tags = ["manual"],
     )
 
-    _write_module_specs_args(
-        name = name + "_import_name_module_actual",
-        mod = "//zig/tests/import-name-module:main",
-        out = name + "_import_name_module_actual.txt",
-        tags = ["manual"],
-    )
-
-    diff_test(
+    _module_specs_test(
         name = name + "_import_name_module_diff_test",
-        failure_message = "generated module specifications do not match",
-        file1 = name + "_import_name_module_expected.txt",
-        file2 = name + "_import_name_module_actual.txt",
-        size = "small",
+        mod = "//zig/tests/import-name-module:main",
+        expected = [
+            "--dep",
+            _dep("import-name-module/data", "//zig/tests/import-name-module:data"),
+            "--dep",
+            _bazel_builtin_dep("//zig/tests/import-name-module:main"),
+            _module("//zig/tests/import-name-module:main", "zig/tests/import-name-module/main.zig"),
+            _bazel_builtin_module("//zig/tests/import-name-module:data"),
+            "--dep",
+            _bazel_builtin_dep("//zig/tests/import-name-module:data"),
+            _module("//zig/tests/import-name-module:data", "zig/tests/import-name-module/data.zig"),
+            _bazel_builtin_module("//zig/tests/import-name-module:main"),
+        ],
     )
 
     native.test_suite(

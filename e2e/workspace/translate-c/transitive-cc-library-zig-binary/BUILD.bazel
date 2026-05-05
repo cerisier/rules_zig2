@@ -1,6 +1,6 @@
 load("@bazel_skylib//rules:diff_test.bzl", "diff_test")
 load("@rules_cc//cc:defs.bzl", "cc_library")
-load("@rules_zig//zig:defs.bzl", "zig_binary", "zig_c_library", "zig_library")
+load("@rules_zig//zig:defs.bzl", "zig_binary", "zig_c_library", "zig_configure_test", "zig_library")
 
 cc_library(
     name = "local_c",
@@ -52,4 +52,11 @@ diff_test(
     size = "small",
     file1 = ":output.expected",
     file2 = ":output.actual",
+)
+
+zig_configure_test(
+    name = "output_test_external_translate_c",
+    size = "small",
+    actual = ":output_test",
+    translate_c = 1,
 )

@@ -1,0 +1,14 @@
+load("@rules_zig//translate-c:toolchain.bzl", "translate_c_toolchain")
+
+translate_c_toolchain(
+    name = "toolchain_impl",
+    translate_c = "@translate-c//:translate-c",
+)
+
+toolchain(
+    name = "toolchain",
+    target_settings = ["@rules_zig//zig/settings:translate_c_enabled"],
+    toolchain = ":toolchain_impl",
+    toolchain_type = "@rules_zig//translate-c:toolchain_type",
+    visibility = ["//visibility:public"],
+)

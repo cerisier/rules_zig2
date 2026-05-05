@@ -56,12 +56,15 @@ ATTRS = {
 
 TOOLCHAINS = [
     "//zig:toolchain_type",
+    config_common.toolchain_type("//translate-c:toolchain_type", mandatory = False),
 ] + use_cc_toolchain(mandatory = False)
 
 FRAGMENTS = ["cpp"]
 
 def _zig_c_library_impl(ctx):
     zigtoolchaininfo = ctx.toolchains["//zig:toolchain_type"].zigtoolchaininfo
+    translate_c_toolchain = ctx.toolchains["//translate-c:toolchain_type"]
+    translatectoolchaininfo = translate_c_toolchain.translatectoolchaininfo if translate_c_toolchain else None
 
     transitive_data = []
     transitive_runfiles = []
@@ -100,7 +103,9 @@ def _zig_c_library_impl(ctx):
         ctx = ctx,
         name = ctx.attr.import_name or ctx.label.name,
         zigtoolchaininfo = zigtoolchaininfo,
+        global_args = global_args,
         cc_infos = cc_infos,
+        translatectoolchaininfo = translatectoolchaininfo,
     )
 
     return [default, module]

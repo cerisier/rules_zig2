@@ -256,6 +256,16 @@ def _external_translate_c(*, ctx, zigtoolchaininfo, translatectoolchaininfo, com
             xcode_path_resolve_level = apple_support.xcode_path_resolve_level.args,
         )
 
+    translate_c_deps = [
+        zig_module_info(
+            name = paths.split_extension(f.basename)[0],
+            canonical_name = paths.split_extension(f.basename)[0],
+            main = f,
+        )
+        for f in translatectoolchaininfo.runfiles.to_list()
+        if f.extension == "zig"
+    ]
+
     actions_run(
         inputs = depset(
             direct = inputs,
@@ -280,7 +290,7 @@ def _external_translate_c(*, ctx, zigtoolchaininfo, translatectoolchaininfo, com
         **actions_run_extra_kwargs
     )
 
-    return zig_out, []
+    return zig_out, translate_c_deps
 
 def zig_translate_c(*, ctx, name, zigtoolchaininfo, global_args, cc_infos, output_prefix = "", canonical_name = None, translatectoolchaininfo = None):
     """Handle translate-c build action.

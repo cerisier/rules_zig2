@@ -83,14 +83,6 @@ def _render_per_module_args(module):
 
     return args
 
-def _add_module_contexts(*, args, module_contexts, seen):
-    for module in module_contexts:
-        key = "{}\0{}".format(module.canonical_name, module.main)
-        if key in seen:
-            continue
-        seen[key] = None
-        args.add_all(_render_per_module_args(module))
-
 def zig_module_specifications(*, root_module, args, c_module = None):
     """Collect inputs and flags to build Zig modules.
 
@@ -100,28 +92,10 @@ def zig_module_specifications(*, root_module, args, c_module = None):
         c_module: ZigModuleInfo or None; If not None, the global C translation module to depend on.
     """
 
-    seen = {}
-
     # The first module is the main module.
-    _add_module_contexts(
-        args = args,
-        module_contexts = [root_module.module_context],
-        seen = seen,
-    )
-    _add_module_contexts(
-        args = args,
-        module_contexts = root_module.transitive_module_contexts.to_list(),
-        seen = seen,
-    )
+    args.add_all(_render_per_module_args(root_module.module_context))
+    args.add_all(root_module.transitive_module_contexts, map_each = _render_per_module_args)
 
     if c_module:
-        _add_module_contexts(
-            args = args,
-            module_contexts = [c_module.module_context],
-            seen = seen,
-        )
-        _add_module_contexts(
-            args = args,
-            module_contexts = c_module.transitive_module_contexts.to_list(),
-            seen = seen,
-        )
+        args.add_all(_render_per_module_args(c_module.module_context))
+        args.add_all(c_module.transitive_module_contexts, map_each = _render_per_module_args)

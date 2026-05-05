@@ -259,7 +259,7 @@ def _external_translate_c(*, ctx, zigtoolchaininfo, translatectoolchaininfo, com
     translate_c_deps = [
         zig_module_info(
             name = paths.split_extension(f.basename)[0],
-            canonical_name = paths.split_extension(f.basename)[0],
+            canonical_name = "{}.{}".format(str(ctx.label), f.basename),
             main = f,
         )
         for f in translatectoolchaininfo.runfiles.to_list()

@@ -16,5 +16,5 @@
 - `rules_zig` must not ship an implementation target for the external translate-c binary.
 - Custom transition attrs are exposed as a one-element list here, so `translate_c_toolchain` normalizes before reading `DefaultInfo`.
 - Per feedback, `TranslateCToolchainInfo` carries the executable file and runfiles, not the configured target.
-- External translate-c runtime Zig modules are explicit `runtime_modules` on `translate_c_toolchain`, not inferred from executable runfiles.
+- External translate-c runtime Zig modules are explicit `runtime_modules` `ZigModuleInfo` deps on `translate_c_toolchain`, not inferred from executable runfiles.
 - Dedicated e2e coverage lives in `e2e/workspace/translate-c/transitive-cc-library-zig-binary`: default `output_test` and transitioned `output_test_external_translate_c`.

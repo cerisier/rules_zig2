@@ -8,9 +8,8 @@ load(
 TranslateCToolchainInfo = provider(
     doc = "Information about how to invoke an external translate-c executable.",
     fields = {
-        "executable": "File, The translate-c executable.",
+        "executable": "FilesToRunProvider, The translate-c executable.",
         "runtime_modules": "List of ZigModuleInfo modules imported by generated translate-c output.",
-        "runfiles": "Depset of files required to run the translate-c executable.",
     },
 )
 
@@ -34,9 +33,8 @@ def _translate_c_toolchain_impl(ctx):
     if not executable:
         fail("translate_c must provide an executable")
     translatectoolchaininfo = TranslateCToolchainInfo(
-        executable = executable,
+        executable = default_info.files_to_run,
         runtime_modules = [dep[ZigModuleInfo] for dep in ctx.attr.runtime_modules],
-        runfiles = default_info.default_runfiles.files,
     )
     return [
         platform_common.ToolchainInfo(

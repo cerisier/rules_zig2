@@ -1,15 +1,18 @@
 """Build file for the e2e translate-c repository."""
 
-load("@rules_zig//zig:defs.bzl", "zig_binary", "zig_library")
+load("@rules_zig//translate-c:toolchain.bzl", "translate_c_runtime_module")
+load("@rules_zig//zig:defs.bzl", "zig_binary")
 
-zig_library(
+translate_c_runtime_module(
     name = "c_builtins",
     main = "lib/c_builtins.zig",
+    visibility = ["//visibility:public"],
 )
 
-zig_library(
+translate_c_runtime_module(
     name = "helpers",
     main = "lib/helpers.zig",
+    visibility = ["//visibility:public"],
 )
 
 zig_binary(

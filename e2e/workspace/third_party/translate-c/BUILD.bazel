@@ -2,6 +2,10 @@ load("@rules_zig//translate-c:toolchain.bzl", "translate_c_toolchain")
 
 translate_c_toolchain(
     name = "toolchain_impl",
+    runtime_modules = [
+        "@translate-c//:c_builtins",
+        "@translate-c//:helpers",
+    ],
     translate_c = "@translate-c//:translate-c",
 )
 

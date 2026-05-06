@@ -257,13 +257,12 @@ def _external_translate_c(*, ctx, zigtoolchaininfo, translatectoolchaininfo, com
         )
 
     translate_c_deps = [
-        zig_module_info(
-            name = paths.split_extension(f.basename)[0],
-            canonical_name = "{}.{}".format(str(ctx.label), f.basename),
-            main = f,
+        _translate_c_runtime_dep(
+            ctx = ctx,
+            module = module,
+            output_prefix = output_prefix,
         )
-        for f in translatectoolchaininfo.runfiles.to_list()
-        if f.extension == "zig"
+        for module in translatectoolchaininfo.runtime_modules
     ]
 
     actions_run(
@@ -291,6 +290,20 @@ def _external_translate_c(*, ctx, zigtoolchaininfo, translatectoolchaininfo, com
     )
 
     return zig_out, translate_c_deps
+
+def _translate_c_runtime_dep(*, ctx, module, output_prefix):
+    main = ctx.actions.declare_file("{}{}_{}_{}".format(
+        output_prefix,
+        ctx.label.name,
+        module.name,
+        module.main.basename,
+    ))
+    ctx.actions.symlink(output = main, target_file = module.main)
+    return zig_module_info(
+        name = module.name,
+        canonical_name = "{}.{}".format(str(ctx.label), module.canonical_name),
+        main = main,
+    )
 
 def zig_translate_c(*, ctx, name, zigtoolchaininfo, global_args, cc_infos, output_prefix = "", canonical_name = None, translatectoolchaininfo = None):
     """Handle translate-c build action.

@@ -9,6 +9,7 @@ bzl_library(
     name = "toolchain",
     srcs = ["toolchain.bzl"],
     visibility = ["//visibility:public"],
+    deps = ["//zig:providers"],
 )
 
 # Execute `bazel run //util:update_filegroups` to update this target.

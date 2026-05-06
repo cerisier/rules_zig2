@@ -272,7 +272,7 @@ def _external_translate_c(*, ctx, zigtoolchaininfo, translatectoolchaininfo, com
             "ZIG_LIB_DIR": zigtoolchaininfo.zig_lib_path,
             "ZIG_LOCAL_CACHE_DIR": zigtoolchaininfo.zig_cache,
         },
-        tools = zigtoolchaininfo.zig_files,
+        tools = [translatectoolchaininfo.files_to_run] + zigtoolchaininfo.zig_files,
         toolchain = "//zig:toolchain_type",
         **actions_run_extra_kwargs
     )

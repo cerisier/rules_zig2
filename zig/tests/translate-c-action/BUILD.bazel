@@ -1,6 +1,6 @@
 load("@rules_cc//cc:defs.bzl", "cc_library")
-load("//translate-c:toolchain.bzl", "translate_c_toolchain")
 load("//zig:defs.bzl", "zig_c_library")
+load("//zig/translate-c:toolchain.bzl", "translate_c_toolchain")
 load(":fake_translate_c.bzl", "fake_translate_c")
 
 cc_library(
@@ -27,5 +27,5 @@ toolchain(
     name = "fake_translate_c_toolchain",
     target_settings = ["//zig/settings:translate_c_enabled"],
     toolchain = ":fake_translate_c_toolchain_impl",
-    toolchain_type = "//translate-c:toolchain_type",
+    toolchain_type = "//zig/translate-c:toolchain_type",
 )

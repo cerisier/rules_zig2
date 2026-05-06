@@ -1,7 +1,7 @@
 """Rules to declare translate-c toolchains."""
 
 load(
-    "//zig:providers.bzl",
+    "//zig/private/providers:zig_module_info.bzl",
     "zig_module_info",
 )
 

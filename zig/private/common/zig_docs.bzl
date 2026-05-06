@@ -57,7 +57,7 @@ def zig_docs_impl(ctx, *, kind):
 
     zigtoolchaininfo = ctx.toolchains["//zig:toolchain_type"].zigtoolchaininfo
     zigtargetinfo = ctx.toolchains["//zig/target:toolchain_type"].zigtargetinfo
-    translate_c_toolchain = ctx.toolchains["//translate-c:toolchain_type"]
+    translate_c_toolchain = ctx.toolchains["//zig/translate-c:toolchain_type"]
     translatectoolchaininfo = translate_c_toolchain.translatectoolchaininfo if translate_c_toolchain else None
 
     files = None

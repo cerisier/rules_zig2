@@ -2,9 +2,9 @@
 
 - [x] Keep `//zig/settings:translate_c`, make it a public `bool_flag` defaulting to `False`.
 - [x] Remove `translate_c` from Zig compiler toolchain APIs and generated repositories.
-- [x] Add `//translate-c:toolchain_type`, provider, and `translate_c_toolchain` rule.
+- [x] Add `//zig/translate-c:toolchain_type`, provider, and `translate_c_toolchain` rule.
 - [x] Make `translate_c_toolchain` transition dependencies back to `translate_c = False`.
-- [x] Make Zig build/doc/C-library rules request `//translate-c:toolchain_type` optionally.
+- [x] Make Zig build/doc/C-library rules request `//zig/translate-c:toolchain_type` optionally.
 - [x] Split translate-c action into external-toolchain path and legacy `zig translate-c` fallback.
 - [x] Add e2e workspace-local external translate-c implementation and toolchain registration.
 - [x] Add dedicated e2e test coverage for fallback and registered external translate-c.

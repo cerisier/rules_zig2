@@ -57,14 +57,14 @@ ATTRS = {
 
 TOOLCHAINS = [
     "//zig:toolchain_type",
-    config_common.toolchain_type("//translate-c:toolchain_type", mandatory = False),
+    config_common.toolchain_type("//zig/translate-c:toolchain_type", mandatory = False),
 ] + use_cc_toolchain(mandatory = False)
 
 FRAGMENTS = ["apple", "cpp"]
 
 def _zig_c_library_impl(ctx):
     zigtoolchaininfo = ctx.toolchains["//zig:toolchain_type"].zigtoolchaininfo
-    translate_c_toolchain = ctx.toolchains["//translate-c:toolchain_type"]
+    translate_c_toolchain = ctx.toolchains["//zig/translate-c:toolchain_type"]
     translatectoolchaininfo = translate_c_toolchain.translatectoolchaininfo if translate_c_toolchain else None
 
     transitive_data = []

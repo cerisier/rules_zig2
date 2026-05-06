@@ -1,7 +1,7 @@
 """Build file for the e2e translate-c repository."""
 
-load("@rules_zig//translate-c:toolchain.bzl", "translate_c_runtime_module")
 load("@rules_zig//zig:defs.bzl", "zig_binary")
+load("@rules_zig//zig/translate-c:toolchain.bzl", "translate_c_runtime_module")
 
 translate_c_runtime_module(
     name = "c_builtins",

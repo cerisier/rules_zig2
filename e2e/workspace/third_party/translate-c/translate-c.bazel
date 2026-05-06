@@ -19,7 +19,6 @@ zig_binary(
     data = glob(["lib/**/*.zig"]),
     srcs = glob(["src/**/*.zig"]),
     main = "src/main.zig",
-    linkopts = ["-lc"],
     visibility = ["//visibility:public"],
     deps = [
         ":c_builtins",
